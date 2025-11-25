@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Доска идей</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            margin: 0;
+            padding: 10px;
+            background-color: #f0f2f5;
+            font-family: sans-serif;
+        }
+        .board {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+            padding: 10px;
+        }
+        .sticker {
+            background-color: #ffeb3b;
+            border-radius: 8px;
+            padding: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            cursor: pointer;
+            word-break: break-word;
+            transition: transform 0.2s;
+        }
+        .sticker:hover {
+            transform: scale(1.03);
+        }
+        .sticker-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .sticker-content {
+            font-size: 14px;
+        }
+        .back-btn {
+            display: inline-block;
+            margin-bottom: 10px;
+            padding: 5px 10px;
+            background-color: #0088cc;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .back-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <h1 id="board-title">Мои идеи</h1>
+        <button id="back-btn" class="back-btn" style="display: none;">← Назад</button>
+        <div id="board" class="board"></div>
+    </div>
+
+    <script src="https://unpkg.com/@twa-dev/sdk@latest/dist/index.js"></script>
+    <script>
+        // Инициализация Telegram Web App
+        const tg = window.Telegram?.WebApp;
+
+        if (tg) {
+            tg.ready();
+            tg.expand(); // Раскрыть на весь экран
+        }
+
+        // Состояние приложения
+        let currentBoardId = 'main';
+        let boards = {
+            main: [
+                { id: 1, title: "Идея 1", content: "Описание идеи 1..." },
+                { id: 2, title: "Идея 2", content: "Описание идеи 2..." },
+                { id: 3, title: "Идея 3", content: "Описание идеи 3..." }
+            ],
+            1: [
+                { id: 101, title: "Задача 1", content: "Детали задачи 1" },
+                { id: 102, title: "Задача 2", content: "Детали задачи 2" }
+            ],
+            2: [
+                { id: 201, title: "План 1", content: "Шаг 1, Шаг 2..." }
+            ],
+            3: []
+        };
+
+        const boardTitle = document.getElementById('board-title');
+        const boardEl = document.getElementById('board');
+        const backBtn = document.getElementById('back-btn');
+
+        // История навигации
+        const history = ['main'];
+
+        function renderBoard(boardId) {
+            const board = boards[boardId];
+            if (!board) {
+                console.error('Board not found:', boardId);
+                return;
+            }
+
+            boardTitle.textContent = `Доска: ${boardId === 'main' ? 'Главная' : 'Идея ' + boardId}`;
+
+            boardEl.innerHTML = '';
+
+            board.forEach(sticker => {
+                const stickerEl = document.createElement('div');
+                stickerEl.className = 'sticker';
+                stickerEl.innerHTML = `
+                    <div class="sticker-title">${sticker.title}</div>
+                    <div class="sticker-content">${sticker.content}</div>
+                `;
+                stickerEl.onclick = () => openSubBoard(sticker.id);
+                boardEl.appendChild(stickerEl);
+            });
+
+            backBtn.style.display = history.length > 1 ? 'block' : 'none';
+        }
+
+        function openSubBoard(id) {
+            if (!boards[id]) {
+                boards[id] = []; // Создаём пустую доску, если её нет
+            }
+            history.push(id);
+            currentBoardId = id;
+            renderBoard(currentBoardId);
+        }
+
+        backBtn.onclick = () => {
+            if (history.length > 1) {
+                history.pop();
+                currentBoardId = history[history.length - 1];
+                renderBoard(currentBoardId);
+            }
+        };
+
+        // Загрузка начальной доски
+        renderBoard(currentBoardId);
+    </script>
+</body>
+</html>
