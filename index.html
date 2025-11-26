@@ -50,12 +50,38 @@
             opacity: 0.5;
             cursor: not-allowed;
         }
+        .add-btn {
+            display: inline-block;
+            margin-bottom: 10px;
+            padding: 5px 10px;
+            background-color: #4caf50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .edit-btn, .delete-btn {
+            display: inline-block;
+            margin-top: 5px;
+            padding: 3px 6px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .edit-btn {
+            background-color: #2196f3;
+            color: white;
+        }
+        .delete-btn {
+            background-color: #f44336;
+            color: white;
+        }
     </style>
 </head>
 <body>
     <div id="app">
         <h1 id="board-title">Мои идеи</h1>
         <button id="back-btn" class="back-btn" style="display: none;">← Назад</button>
+        <button id="add-btn" class="add-btn">+ Добавить стикер</button>
         <div id="board" class="board"></div>
     </div>
 
@@ -66,12 +92,12 @@
 
         if (tg) {
             tg.ready();
-            tg.expand(); // Раскрыть на весь экран
+            tg.expand();
         }
 
         // Состояние приложения
         let currentBoardId = 'main';
-        let boards = {
+        let boards = JSON.parse(localStorage.getItem('boards')) || {
             main: [
                 { id: 1, title: "Идея 1", content: "Описание идеи 1..." },
                 { id: 2, title: "Идея 2", content: "Описание идеи 2..." },
@@ -90,9 +116,14 @@
         const boardTitle = document.getElementById('board-title');
         const boardEl = document.getElementById('board');
         const backBtn = document.getElementById('back-btn');
+        const addBtn = document.getElementById('add-btn');
 
         // История навигации
         const history = ['main'];
+
+        function saveBoards() {
+            localStorage.setItem('boards', JSON.stringify(boards));
+        }
 
         function renderBoard(boardId) {
             const board = boards[boardId];
@@ -111,8 +142,20 @@
                 stickerEl.innerHTML = `
                     <div class="sticker-title">${sticker.title}</div>
                     <div class="sticker-content">${sticker.content}</div>
+                    <button class="edit-btn" data-id="${sticker.id}">Редактировать</button>
+                    <button class="delete-btn" data-id="${sticker.id}">Удалить</button>
                 `;
                 stickerEl.onclick = () => openSubBoard(sticker.id);
+
+                stickerEl.querySelector('.edit-btn').onclick = (e) => {
+                    e.stopPropagation();
+                    editSticker(sticker.id);
+                };
+                stickerEl.querySelector('.delete-btn').onclick = (e) => {
+                    e.stopPropagation();
+                    deleteSticker(sticker.id);
+                };
+
                 boardEl.appendChild(stickerEl);
             });
 
@@ -121,11 +164,48 @@
 
         function openSubBoard(id) {
             if (!boards[id]) {
-                boards[id] = []; // Создаём пустую доску, если её нет
+                boards[id] = [];
+                saveBoards();
             }
             history.push(id);
             currentBoardId = id;
             renderBoard(currentBoardId);
+        }
+
+        function addSticker() {
+            const newId = Date.now();
+            const newSticker = {
+                id: newId,
+                title: "Новый стикер",
+                content: "Кликните, чтобы открыть, или редактируйте."
+            };
+            boards[currentBoardId].push(newSticker);
+            saveBoards();
+            renderBoard(currentBoardId);
+        }
+
+        function editSticker(id) {
+            const sticker = boards[currentBoardId].find(s => s.id === id);
+            if (!sticker) return;
+
+            const newTitle = prompt("Введите новое название:", sticker.title);
+            if (newTitle !== null) {
+                sticker.title = newTitle;
+            }
+            const newContent = prompt("Введите новое содержание:", sticker.content);
+            if (newContent !== null) {
+                sticker.content = newContent;
+            }
+            saveBoards();
+            renderBoard(currentBoardId);
+        }
+
+        function deleteSticker(id) {
+            if (confirm("Удалить этот стикер?")) {
+                boards[currentBoardId] = boards[currentBoardId].filter(s => s.id !== id);
+                saveBoards();
+                renderBoard(currentBoardId);
+            }
         }
 
         backBtn.onclick = () => {
@@ -134,6 +214,10 @@
                 currentBoardId = history[history.length - 1];
                 renderBoard(currentBoardId);
             }
+        };
+
+        addBtn.onclick = () => {
+            addSticker();
         };
 
         // Загрузка начальной доски
