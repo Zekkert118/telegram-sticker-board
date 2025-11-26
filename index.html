@@ -95,23 +95,12 @@
             tg.expand();
         }
 
+        // Укажи URL твоего сервера (например, https://sticker-board-api.onrender.com)
+        const API_BASE = 'https://sticker-board-api.onrender.com';
+
         // Состояние приложения
         let currentBoardId = 'main';
-        let boards = JSON.parse(localStorage.getItem('boards')) || {
-            main: [
-                { id: 1, title: "Идея 1", content: "Описание идеи 1..." },
-                { id: 2, title: "Идея 2", content: "Описание идеи 2..." },
-                { id: 3, title: "Идея 3", content: "Описание идеи 3..." }
-            ],
-            1: [
-                { id: 101, title: "Задача 1", content: "Детали задачи 1" },
-                { id: 102, title: "Задача 2", content: "Детали задачи 2" }
-            ],
-            2: [
-                { id: 201, title: "План 1", content: "Шаг 1, Шаг 2..." }
-            ],
-            3: []
-        };
+        let boards = {};
 
         const boardTitle = document.getElementById('board-title');
         const boardEl = document.getElementById('board');
@@ -121,14 +110,22 @@
         // История навигации
         const history = ['main'];
 
-        function saveBoards() {
-            localStorage.setItem('boards', JSON.stringify(boards));
+        async function loadBoard(boardId) {
+            try {
+                const response = await fetch(`${API_BASE}/board/${boardId}`);
+                if (!response.ok) throw new Error('Failed to load board');
+                boards[boardId] = await response.json();
+                renderBoard(boardId);
+            } catch (e) {
+                console.error('Error loading board:', e);
+                alert('Ошибка загрузки доски');
+            }
         }
 
         function renderBoard(boardId) {
             const board = boards[boardId];
             if (!board) {
-                console.error('Board not found:', boardId);
+                console.error('Board not found in memory:', boardId);
                 return;
             }
 
@@ -163,48 +160,71 @@
         }
 
         function openSubBoard(id) {
-            if (!boards[id]) {
-                boards[id] = [];
-                saveBoards();
-            }
             history.push(id);
             currentBoardId = id;
-            renderBoard(currentBoardId);
+            loadBoard(currentBoardId);
         }
 
-        function addSticker() {
-            const newId = Date.now();
-            const newSticker = {
-                id: newId,
-                title: "Новый стикер",
-                content: "Кликните, чтобы открыть, или редактируйте."
-            };
-            boards[currentBoardId].push(newSticker);
-            saveBoards();
-            renderBoard(currentBoardId);
+        async function addSticker() {
+            const newTitle = prompt("Введите название стикера:");
+            if (newTitle === null) return;
+            const newContent = prompt("Введите содержание стикера:");
+            if (newContent === null) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/sticker/${currentBoardId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title: newTitle, content: newContent })
+                });
+                if (!response.ok) throw new Error('Failed to add sticker');
+                const newSticker = await response.json();
+                boards[currentBoardId].push(newSticker);
+                renderBoard(currentBoardId);
+            } catch (e) {
+                console.error('Error adding sticker:', e);
+                alert('Ошибка добавления стикера');
+            }
         }
 
-        function editSticker(id) {
+        async function editSticker(id) {
             const sticker = boards[currentBoardId].find(s => s.id === id);
             if (!sticker) return;
 
             const newTitle = prompt("Введите новое название:", sticker.title);
-            if (newTitle !== null) {
-                sticker.title = newTitle;
-            }
+            if (newTitle === null) return;
             const newContent = prompt("Введите новое содержание:", sticker.content);
-            if (newContent !== null) {
+            if (newContent === null) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/sticker/${currentBoardId}/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title: newTitle, content: newContent })
+                });
+                if (!response.ok) throw new Error('Failed to update sticker');
+                sticker.title = newTitle;
                 sticker.content = newContent;
+                renderBoard(currentBoardId);
+            } catch (e) {
+                console.error('Error updating sticker:', e);
+                alert('Ошибка редактирования стикера');
             }
-            saveBoards();
-            renderBoard(currentBoardId);
         }
 
-        function deleteSticker(id) {
-            if (confirm("Удалить этот стикер?")) {
+        async function deleteSticker(id) {
+            if (!confirm("Удалить этот стикер?")) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/sticker/${currentBoardId}/${id}`, {
+                    method: 'DELETE'
+                });
+                if (!response.ok) throw new Error('Failed to delete sticker');
                 boards[currentBoardId] = boards[currentBoardId].filter(s => s.id !== id);
-                saveBoards();
                 renderBoard(currentBoardId);
+            } catch (e) {
+                console.error('Error deleting sticker:', e);
+                alert('Ошибка удаления стикера');
             }
         }
 
@@ -221,7 +241,7 @@
         };
 
         // Загрузка начальной доски
-        renderBoard(currentBoardId);
+        loadBoard(currentBoardId);
     </script>
 </body>
 </html>
